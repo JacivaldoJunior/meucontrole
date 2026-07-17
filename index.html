@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meu Controle — Bob Jr</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc',
+              400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca',
+              800: '#3730a3', 900: '#312e81',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .card-hover { transition: all 0.2s ease; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+    input, select, textarea { color-scheme: dark; }
+    .toast { animation: slideIn 0.3s ease-out; }
+    @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  </style>
+</head>
+<body class="dark bg-slate-950 text-slate-100 min-h-screen">
+
+  <!-- =================== LOGIN SCREEN =================== -->
+  <div id="login-screen" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950">
+    <div class="w-full max-w-md p-8 bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl">
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-600 mb-4">
+          <i data-lucide="layout-dashboard" class="w-8 h-8 text-white"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-white">Meu Controle</h1>
+        <p class="text-slate-400 mt-2">Seu sistema pessoal de gestão</p>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="text-sm text-slate-400 mb-1 block">Email</label>
+          <input id="login-email" type="email" placeholder="seu@email.com"
+            class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-brand-500" />
+        </div>
+        <div>
+          <label class="text-sm text-slate-400 mb-1 block">Senha</label>
+          <input id="login-password" type="password" placeholder="••••••••"
+            class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-brand-500" />
+        </div>
+        <button onclick="handleLogin()" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-semibold transition-colors">
+          Entrar
+        </button>
+        <button onclick="handleSignUp()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold transition-colors border border-slate-700">
+          Criar conta
+        </button>
+        <p id="login-error" class="text-red-400 text-sm text-center hidden"></p>
+      </div>
+      <div class="mt-6 pt-6 border-t border-slate-800">
+        <p class="text-xs text-slate-500 text-center">
+          ⚙️ Configure o Supabase editando as variáveis <code class="text-brand-400">SUPABASE_URL</code> e <code class="text-brand-400">SUPABASE_KEY</code> no início do arquivo.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- =================== APP LAYOUT =================== -->
+  <div id="app" class="hidden flex min-h-screen">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col fixed h-full z-30">
+      <div class="p-6 border-b border-slate-800">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center">
+            <i data-lucide="layout-dashboard" class="w-5 h-5 text-white"></i>
+          </div>
+          <div>
+            <h1 class="font-bold text-white">Meu Controle</h1>
+            <p class="text-xs text-slate-500">Bob Jr</p>
+          </div>
+        </div>
+      </div>
+      <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+        <button onclick="showSection('dashboard')" data-section="dashboard" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">
+          <i data-lucide="home" class="w-5 h-5"></i> <span>Dashboard</span>
+        </button>
+        <button onclick="showSection('financiamentos')" data-section="financiamentos" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">
+          <i data-lucide="landmark" class="w-5 h-5"></i> <span>Financiamentos</span>
+        </button>
+        <button onclick="showSection('carreira')" data-section="carreira" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">
+          <i data-lucide="briefcase" class="w-5 h-5"></i> <span>Carreira</span>
+        </button>
+        <button onclick="showSection('faculdade')" data-section="faculdade" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">
+          <i data-lucide="graduation-cap" class="w-5 h-5"></i> <span>Faculdade</span>
+        </button>
+        <button onclick="showSection('tarefas')" data-section="tarefas" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">
+          <i data-lucide="check-square" class="w-5 h-5"></i> <span>Tarefas</span>
+        </button>
+        <button onclick="showSection('renda')" data-section="renda" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors">
+          <i data-lucide="dollar-sign" class="w-5 h-5"></i> <span>Renda Extra</span>
+        </button>
+      </nav>
+      <div class="p-4 border-t border-slate-800">
+        <button onclick="handleLogout()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-red-400 transition-colors">
+          <i data-lucide="log-out" class="w-5 h-5"></i> <span>Sair</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Mobile sidebar toggle -->
+    <button id="mobile-toggle" onclick="toggleSidebar()" class="hidden fixed top-4 left-4 z-40 p-2 bg-slate-800 rounded-lg border border-slate-700 lg:hidden">
+      <i data-lucide="menu" class="w-5 h-5"></i>
+    </button>
+
+    <!-- Main Content -->
+    <main class="flex-1 ml-64 p-8 overflow-y-auto">
+
+      <!-- ============ DASHBOARD ============ -->
+      <section id="section-dashboard" class="space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-3xl font-bold text-white">Dashboard</h2>
+            <p class="text-slate-400 mt-1">Visão geral do seu controle pessoal</p>
+          </div>
+          <p id="today-date" class="text-slate-400 text-sm"></p>
+        </div>
+
+        <!-- Stats cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="card-hover bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-slate-400">Financiamentos Ativos</p>
+                <p id="stat-financiamentos" class="text-3xl font-bold text-white mt-2">—</p>
+              </div>
+              <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <i data-lucide="landmark" class="w-6 h-6 text-amber-500"></i>
+              </div>
+            </div>
+            <p id="stat-financiamentos-sub" class="text-xs text-slate-500 mt-3"></p>
+          </div>
+          <div class="card-hover bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-slate-400">Projetos de Carreira</p>
+                <p id="stat-carreira" class="text-3xl font-bold text-white mt-2">—</p>
+              </div>
+              <div class="w-12 h-12 rounded-xl bg-brand-500/10 flex items-center justify-center">
+                <i data-lucide="briefcase" class="w-6 h-6 text-brand-500"></i>
+              </div>
+            </div>
+            <p id="stat-carreira-sub" class="text-xs text-slate-500 mt-3"></p>
+          </div>
+          <div class="card-hover bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-slate-400">Tarefas Faculdade</p>
+                <p id="stat-faculdade" class="text-3xl font-bold text-white mt-2">—</p>
+              </div>
+              <div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                <i data-lucide="graduation-cap" class="w-6 h-6 text-purple-500"></i>
+              </div>
+            </div>
+            <p id="stat-faculdade-sub" class="text-xs text-slate-500 mt-3"></p>
+          </div>
+          <div class="card-hover bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-slate-400">Renda Extra (mês)</p>
+                <p id="stat-renda" class="text-3xl font-bold text-white mt-2">—</p>
+              </div>
+              <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                <i data-lucide="dollar-sign" class="w-6 h-6 text-emerald-500"></i>
+              </div>
+            </div>
+            <p id="stat-renda-sub" class="text-xs text-slate-500 mt-3"></p>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <h3 class="font-semibold text-white mb-4">Renda Extra por Mês</h3>
+            <canvas id="chart-renda" height="200"></canvas>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <h3 class="font-semibold text-white mb-4">Status das Tarefas</h3>
+            <canvas id="chart-tarefas" height="200"></canvas>
+          </div>
+        </div>
+
+        <!-- Recent tasks -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+          <h3 class="font-semibold text-white mb-4">Tarefas Recentes</h3>
+          <div id="recent-tasks" class="space-y-2">
+            <p class="text-slate-500 text-sm">Carregando…</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ FINANCIAMENTOS ============ -->
+      <section id="section-financiamentos" class="hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-3xl font-bold text-white">Financiamentos</h2>
+            <p class="text-slate-400 mt-1">Acompanhe seus financiamentos e parcelas</p>
+          </div>
+          <button onclick="openModal('financiamento')" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i> Novo
+          </button>
+        </div>
+        <div id="list-financiamentos" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </section>
+
+      <!-- ============ CARREIRA ============ -->
+      <section id="section-carreira" class="hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-3xl font-bold text-white">Projetos de Carreira</h2>
+            <p class="text-slate-400 mt-1">Seus projetos e metas profissionais</p>
+          </div>
+          <button onclick="openModal('carreira')" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i> Novo
+          </button>
+        </div>
+        <div id="list-carreira" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </section>
+
+      <!-- ============ FACULDADE ============ -->
+      <section id="section-faculdade" class="hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-3xl font-bold text-white">Faculdade</h2>
+            <p class="text-slate-400 mt-1">Tarefas, trabalhos e provas</p>
+          </div>
+          <button onclick="openModal('faculdade')" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i> Novo
+          </button>
+        </div>
+        <div id="list-faculdade" class="space-y-3"></div>
+      </section>
+
+      <!-- ============ TAREFAS ============ -->
+      <section id="section-tarefas" class="hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-3xl font-bold text-white">Tarefas Gerais</h2>
+            <p class="text-slate-400 mt-1">Tudo que você precisa fazer</p>
+          </div>
+          <button onclick="openModal('tarefa')" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i> Nova
+          </button>
+        </div>
+        <div id="list-tarefas" class="space-y-3"></div>
+      </section>
+
+      <!-- ============ RENDA EXTRA ============ -->
+      <section id="section-renda" class="hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-3xl font-bold text-white">Renda Extra</h2>
+            <p class="text-slate-400 mt-1">Suas fontes de renda adicional</p>
+          </div>
+          <button onclick="openModal('renda')" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i> Novo
+          </button>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2">
+            <div id="list-renda" class="space-y-3"></div>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 h-fit">
+            <h3 class="font-semibold text-white mb-4">Resumo do Mês</h3>
+            <p id="renda-total-mes" class="text-3xl font-bold text-emerald-500">—</p>
+            <p class="text-slate-400 text-sm mt-1">Total recebido este mês</p>
+            <hr class="border-slate-800 my-4">
+            <p id="renda-total-ano" class="text-2xl font-bold text-white">—</p>
+            <p class="text-slate-400 text-sm mt-1">Total no ano</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- =================== MODAL =================== -->
+  <div id="modal-overlay" class="hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onclick="closeModal(event)">
+    <div class="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-6">
+        <h3 id="modal-title" class="text-xl font-bold text-white">Novo item</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="modal-form" onsubmit="handleSubmit(event)" class="space-y-4">
+        <input type="hidden" id="form-id" />
+        <input type="hidden" id="form-type" />
+        <div id="modal-fields"></div>
+        <button type="submit" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-semibold transition-colors">
+          Salvar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- =================== TOAST =================== -->
+  <div id="toast-container" class="fixed top-4 right-4 z-[60] space-y-2"></div>
+
+  <script>
+    // ============================================================
+    // ⚙️ CONFIGURAÇÃO DO SUPABASE
+    // Substitua pelos seus dados do Supabase (Settings > API)
+    // ============================================================
+    const SUPABASE_URL = 'https://ypdzqeyknoodbggbxcrn.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwZHpxZXlrbm9vZGJnZ2J4Y3JuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMTM2MTMsImV4cCI6MjA5OTg4OTYxM30.LmpQ5agvepkmX-cC3rimK4wo2bym6iMLKgPi_q2se_0';
+
+    let supabase = null;
+    let currentUser = null;
+    let charts = {};
+    let currentSection = 'dashboard';
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    async function init() {
+      if (SUPABASE_URL === 'COLE_SUA_URL_AQUI') {
+        showToast('Configure o Supabase primeiro! Edite SUPABASE_URL e SUPABASE_KEY no início do arquivo.', 'error');
+        document.getElementById('login-screen').classList.remove('hidden');
+        return;
+      }
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        currentUser = session.user;
+        showApp();
+      } else {
+        document.getElementById('login-screen').classList.remove('hidden');
+      }
+
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          currentUser = session.user;
+          showApp();
+        } else if (event === 'SIGNED_OUT') {
+          currentUser = null;
+          document.getElementById('app').classList.add('hidden');
+          document.getElementById('login-screen').classList.remove('hidden');
+        }
+      });
+
+      lucide.createIcons();
+      document.getElementById('today-date').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    // ============================================================
+    // AUTH
+    // ============================================================
+    async function handleLogin() {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      const errEl = document.getElementById('login-error');
+      errEl.classList.add('hidden');
+
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        errEl.textContent = error.message;
+        errEl.classList.remove('hidden');
+      }
+    }
+
+    async function handleSignUp() {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      const errEl = document.getElementById('login-error');
+      errEl.classList.add('hidden');
+
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        errEl.textContent = error.message;
+        errEl.classList.remove('hidden');
+      } else {
+        showToast('Conta criada! Verifique seu email para confirmar.', 'success');
+      }
+    }
+
+    async function handleLogout() {
+      await supabase.auth.signOut();
+    }
+
+    function showApp() {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      lucide.createIcons();
+      loadAllData();
+    }
+
+    // ============================================================
+    // NAVIGATION
+    // ============================================================
+    function showSection(section) {
+      currentSection = section;
+      document.querySelectorAll('section[id^="section-"]').forEach(s => s.classList.add('hidden'));
+      document.getElementById('section-' + section).classList.remove('hidden');
+      document.getElementById('section-' + section).classList.add('fade-in');
+
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        if (btn.dataset.section === section) {
+          btn.classList.add('bg-slate-800', 'text-white');
+        } else {
+          btn.classList.remove('bg-slate-800', 'text-white');
+        }
+      });
+
+      if (window.innerWidth < 1024) {
+        document.querySelector('aside').classList.toggle('-translate-x-full', true);
+      }
+    }
+
+    function toggleSidebar() {
+      document.querySelector('aside').classList.toggle('-translate-x-full');
+    }
+
+    // ============================================================
+    // DATA LOADING
+    // ============================================================
+    async function loadAllData() {
+      await Promise.all([
+        loadFinanciamentos(),
+        loadCarreira(),
+        loadFaculdade(),
+        loadTarefas(),
+        loadRenda()
+      ]);
+      updateDashboard();
+    }
+
+    async function loadFinanciamentos() {
+      const { data, error } = await supabase.from('financiamentos').select('*').order('created_at', { ascending: false });
+      if (error) return console.error(error);
+      renderFinanciamentos(data || []);
+    }
+
+    async function loadCarreira() {
+      const { data, error } = await supabase.from('projetos_carreira').select('*').order('created_at', { ascending: false });
+      if (error) return console.error(error);
+      renderCarreira(data || []);
+    }
+
+    async function loadFaculdade() {
+      const { data, error } = await supabase.from('faculdade').select('*').order('created_at', { ascending: false });
+      if (error) return console.error(error);
+      renderFaculdade(data || []);
+    }
+
+    async function loadTarefas() {
+      const { data, error } = await supabase.from('tarefas').select('*').order('created_at', { ascending: false });
+      if (error) return console.error(error);
+      renderTarefas(data || []);
+    }
+
+    async function loadRenda() {
+      const { data, error } = await supabase.from('renda_extra').select('*').order('created_at', { ascending: false });
+      if (error) return console.error(error);
+      renderRenda(data || []);
+    }
+
+    // ============================================================
+    // RENDERERS
+    // ============================================================
+    function renderFinanciamentos(items) {
+      const container = document.getElementById('list-financiamentos');
+      if (!items.length) {
+        container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500"><i data-lucide="landmark" class="w-12 h-12 mx-auto mb-3 opacity-30"></i><p>Nenhum financiamento cadastrado</p></div>`;
+        lucide.createIcons();
+        return;
+      }
+      container.innerHTML = items.map(f => {
+        const pct = f.parcelas_totais ? Math.round((f.parcelas_pagas / f.parcelas_totais) * 100) : 0;
+        const statusColor = f.status === 'quitado' ? 'emerald' : f.status === 'atrasado' ? 'red' : 'amber';
+        return `
+          <div class="card-hover bg-slate-900 border border-slate-800 rounded-xl p-5">
+            <div class="flex items-start justify-between mb-3">
+              <h3 class="font-semibold text-white">${esc(f.nome)}</h3>
+              <span class="text-xs px-2 py-1 rounded-full bg-${statusColor}-500/10 text-${statusColor}-400">${esc(f.status)}</span>
+            </div>
+            <div class="space-y-1 text-sm">
+              <div class="flex justify-between"><span class="text-slate-400">Valor total:</span> <span class="text-white font-medium">R$ ${(f.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Parcela:</span> <span class="text-white font-medium">R$ ${(f.valor_parcela || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">Parcelas:</span> <span class="text-white font-medium">${f.parcelas_pagas || 0}/${f.parcelas_totais || 0}</span></div>
+            </div>
+            <div class="mt-3">
+              <div class="w-full bg-slate-800 rounded-full h-2">
+                <div class="bg-brand-600 h-2 rounded-full transition-all" style="width:${pct}%"></div>
+              </div>
+              <p class="text-xs text-slate-500 mt-1">${pct}% quitado</p>
+            </div>
+            <div class="flex gap-2 mt-4">
+              <button onclick="openModal('financiamento','${f.id}')" class="flex-1 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors">Editar</button>
+              <button onclick="deleteItem('financiamentos','${f.id}')" class="px-3 py-1.5 text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors">Excluir</button>
+            </div>
+          </div>`;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function renderCarreira(items) {
+      const container = document.getElementById('list-carreira');
+      if (!items.length) {
+        container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500"><i data-lucide="briefcase" class="w-12 h-12 mx-auto mb-3 opacity-30"></i><p>Nenhum projeto cadastrado</p></div>`;
+        lucide.createIcons();
+        return;
+      }
+      const statusMap = { planejado: 'slate', em_andamento: 'brand', concluido: 'emerald', pausado: 'amber' };
+      const prioMap = { baixa: 'slate', media: 'amber', alta: 'red' };
+      container.innerHTML = items.map(p => `
+        <div class="card-hover bg-slate-900 border border-slate-800 rounded-xl p-5">
+          <div class="flex items-start justify-between mb-2">
+            <h3 class="font-semibold text-white">${esc(p.nome)}</h3>
+            <span class="text-xs px-2 py-1 rounded-full bg-${statusMap[p.status] || 'slate'}-500/10 text-${statusMap[p.status] || 'slate'}-400">${esc(p.status?.replace('_',' '))}</span>
+          </div>
+          <p class="text-sm text-slate-400 mb-3">${esc(p.descricao) || 'Sem descrição'}</p>
+          <div class="flex items-center gap-3 mb-3">
+            <span class="text-xs px-2 py-1 rounded-full bg-${prioMap[p.prioridade] || 'slate'}-500/10 text-${prioMap[p.prioridade] || 'slate'}-400">Prioridade: ${esc(p.prioridade)}</span>
+            ${p.prazo ? `<span class="text-xs text-slate-500">Prazo: ${formatDate(p.prazo)}</span>` : ''}
+          </div>
+          <div class="mb-3">
+            <div class="flex justify-between text-xs text-slate-400 mb-1"><span>Progresso</span><span>${p.progresso || 0}%</span></div>
+            <div class="w-full bg-slate-800 rounded-full h-2">
+              <div class="bg-brand-600 h-2 rounded-full transition-all" style="width:${p.progresso || 0}%"></div>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="openModal('carreira','${p.id}')" class="flex-1 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors">Editar</button>
+            <button onclick="deleteItem('projetos_carreira','${p.id}')" class="px-3 py-1.5 text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors">Excluir</button>
+          </div>
+        </div>`).join('');
+      lucide.createIcons();
+    }
+
+    function renderFaculdade(items) {
+      const container = document.getElementById('list-faculdade');
+      if (!items.length) {
+        container.innerHTML = `<div class="text-center py-12 text-slate-500"><i data-lucide="graduation-cap" class="w-12 h-12 mx-auto mb-3 opacity-30"></i><p>Nenhuma tarefa cadastrada</p></div>`;
+        lucide.createIcons();
+        return;
+      }
+      const statusMap = { pendente: 'amber', em_andamento: 'brand', concluido: 'emerald' };
+      container.innerHTML = items.map(f => `
+        <div class="card-hover flex items-center gap-4 bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <button onclick="toggleFaculdadeStatus('${f.id}','${f.status}')" class="w-6 h-6 rounded-full border-2 ${f.status === 'concluido' ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600 hover:border-brand-500'} flex items-center justify-center shrink-0">
+            ${f.status === 'concluido' ? '<i data-lucide="check" class="w-3 h-3 text-white"></i>' : ''}
+          </button>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-medium ${f.status === 'concluido' ? 'line-through text-slate-500' : 'text-white'}">${esc(f.tarefa)}</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-${statusMap[f.status] || 'slate'}-500/10 text-${statusMap[f.status] || 'slate'}-400">${esc(f.status?.replace('_',' '))}</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs text-slate-500 mt-1">
+              <span>${esc(f.materia)}</span>
+              ${f.prazo ? `<span>• ${formatDate(f.prazo)}</span>` : ''}
+              ${f.nota != null ? `<span>• Nota: ${f.nota}</span>` : ''}
+            </div>
+          </div>
+          <div class="flex gap-2 shrink-0">
+            <button onclick="openModal('faculdade','${f.id}')" class="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors">Editar</button>
+            <button onclick="deleteItem('faculdade','${f.id}')" class="px-2 py-1.5 text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+          </div>
+        </div>`).join('');
+      lucide.createIcons();
+    }
+
+    function renderTarefas(items) {
+      const container = document.getElementById('list-tarefas');
+      if (!items.length) {
+        container.innerHTML = `<div class="text-center py-12 text-slate-500"><i data-lucide="check-square" class="w-12 h-12 mx-auto mb-3 opacity-30"></i><p>Nenhuma tarefa cadastrada</p></div>`;
+        lucide.createIcons();
+        return;
+      }
+      const statusMap = { pendente: 'amber', em_andamento: 'brand', concluido: 'emerald' };
+      const prioMap = { baixa: 'slate', media: 'amber', alta: 'red' };
+      container.innerHTML = items.map(t => `
+        <div class="card-hover flex items-center gap-4 bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <button onclick="toggleTarefaStatus('${t.id}','${t.status}')" class="w-6 h-6 rounded-full border-2 ${t.status === 'concluido' ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600 hover:border-brand-500'} flex items-center justify-center shrink-0">
+            ${t.status === 'concluido' ? '<i data-lucide="check" class="w-3 h-3 text-white"></i>' : ''}
+          </button>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-medium ${t.status === 'concluido' ? 'line-through text-slate-500' : 'text-white'}">${esc(t.titulo)}</span>
+              ${t.categoria ? `<span class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">${esc(t.categoria)}</span>` : ''}
+              <span class="text-xs px-2 py-0.5 rounded-full bg-${prioMap[t.prioridade] || 'slate'}-500/10 text-${prioMap[t.prioridade] || 'slate'}-400">${esc(t.prioridade)}</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-${statusMap[t.status] || 'slate'}-500/10 text-${statusMap[t.status] || 'slate'}-400">${esc(t.status?.replace('_',' '))}</span>
+            </div>
+            ${t.prazo ? `<p class="text-xs text-slate-500 mt-1">Prazo: ${formatDate(t.prazo)}</p>` : ''}
+          </div>
+          <div class="flex gap-2 shrink-0">
+            <button onclick="openModal('tarefa','${t.id}')" class="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors">Editar</button>
+            <button onclick="deleteItem('tarefas','${t.id}')" class="px-2 py-1.5 text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+          </div>
+        </div>`).join('');
+      lucide.createIcons();
+    }
+
+    function renderRenda(items) {
+      const container = document.getElementById('list-renda');
+      if (!items.length) {
+        container.innerHTML = `<div class="text-center py-12 text-slate-500"><i data-lucide="dollar-sign" class="w-12 h-12 mx-auto mb-3 opacity-30"></i><p>Nenhuma renda cadastrada</p></div>`;
+        lucide.createIcons();
+        return;
+      }
+      const now = new Date();
+      let totalMes = 0, totalAno = 0;
+      items.forEach(r => {
+        const d = new Date(r.data || r.created_at);
+        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) totalMes += r.valor || 0;
+        if (d.getFullYear() === now.getFullYear()) totalAno += r.valor || 0;
+      });
+
+      container.innerHTML = items.map(r => `
+        <div class="card-hover flex items-center gap-4 bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+            <i data-lucide="dollar-sign" class="w-5 h-5 text-emerald-500"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-white">${esc(r.fonte)}</span>
+              <span class="font-bold text-emerald-500">R$ ${(r.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs text-slate-500 mt-1">
+              <span>${formatDate(r.data)}</span>
+              ${r.descricao ? `<span>• ${esc(r.descricao)}</span>` : ''}
+            </div>
+          </div>
+          <div class="flex gap-2 shrink-0">
+            <button onclick="openModal('renda','${r.id}')" class="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors">Editar</button>
+            <button onclick="deleteItem('renda_extra','${r.id}')" class="px-2 py-1.5 text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+          </div>
+        </div>`).join('');
+
+      document.getElementById('renda-total-mes').textContent = 'R$ ' + totalMes.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+      document.getElementById('renda-total-ano').textContent = 'R$ ' + totalAno.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+      lucide.createIcons();
+    }
+
+    // ============================================================
+    // DASHBOARD
+    // ============================================================
+    async function updateDashboard() {
+      const [fin, car, fac, tar, ren] = await Promise.all([
+        supabase.from('financiamentos').select('*'),
+        supabase.from('projetos_carreira').select('*'),
+        supabase.from('faculdade').select('*'),
+        supabase.from('tarefas').select('*'),
+        supabase.from('renda_extra').select('*')
+      ]);
+
+      const finData = fin.data || [];
+      const carData = car.data || [];
+      const facData = fac.data || [];
+      const tarData = tar.data || [];
+      const renData = ren.data || [];
+
+      // Stats
+      const finAtivos = finData.filter(f => f.status === 'ativo');
+      document.getElementById('stat-financiamentos').textContent = finAtivos.length;
+      const finRestante = finAtivos.reduce((s, f) => s + ((f.valor_total || 0) - ((f.valor_parcela || 0) * (f.parcelas_pagas || 0))), 0);
+      document.getElementById('stat-financiamentos-sub').textContent = `R$ ${finRestante.toLocaleString('pt-BR', {minimumFractionDigits:2})} restante`;
+
+      const carAndamento = carData.filter(c => c.status === 'em_andamento');
+      document.getElementById('stat-carreira').textContent = carAndamento.length;
+      document.getElementById('stat-carreira-sub').textContent = `${carData.filter(c => c.status === 'concluido').length} concluídos`;
+
+      const facPendentes = facData.filter(f => f.status !== 'concluido');
+      document.getElementById('stat-faculdade').textContent = facPendentes.length;
+      document.getElementById('stat-faculdade-sub').textContent = `${facData.filter(f => f.status === 'concluido').length} concluídas`;
+
+      const now = new Date();
+      const rendaMes = renData.filter(r => {
+        const d = new Date(r.data || r.created_at);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      }).reduce((s, r) => s + (r.valor || 0), 0);
+      document.getElementById('stat-renda').textContent = 'R$ ' + rendaMes.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+      document.getElementById('stat-renda-sub').textContent = `${renData.length} registros no total`;
+
+      // Recent tasks (from tarefas + faculdade)
+      const allTasks = [
+        ...tarData.map(t => ({ titulo: t.titulo, prazo: t.prazo, status: t.status, tipo: 'Tarefa' })),
+        ...facData.map(f => ({ titulo: f.tarefa, prazo: f.prazo, status: f.status, tipo: f.materia }))
+      ].filter(t => t.status !== 'concluido').sort((a, b) => {
+        if (!a.prazo) return 1; if (!b.prazo) return -1;
+        return new Date(a.prazo) - new Date(b.prazo);
+      }).slice(0, 5);
+
+      const recentEl = document.getElementById('recent-tasks');
+      recentEl.innerHTML = allTasks.length ? allTasks.map(t => `
+        <div class="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg">
+          <div class="w-2 h-2 rounded-full ${t.status === 'em_andamento' ? 'bg-brand-500' : 'bg-amber-500'}"></div>
+          <span class="text-sm text-white flex-1">${esc(t.titulo)}</span>
+          <span class="text-xs text-slate-500">${esc(t.tipo)}</span>
+          ${t.prazo ? `<span class="text-xs text-slate-400">${formatDate(t.prazo)}</span>` : ''}
+        </div>`).join('') : '<p class="text-slate-500 text-sm">Tudo em dia! 🎉</p>';
+
+      // Charts
+      renderRendaChart(renData);
+      renderTarefasChart(tarData, facData);
+    }
+
+    function renderRendaChart(data) {
+      const months = {};
+      const now = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months[`${d.getFullYear()}-${d.getMonth()}`] = 0;
+      }
+      data.forEach(r => {
+        const d = new Date(r.data || r.created_at);
+        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        if (key in months) months[key] += r.valor || 0;
+      });
+
+      const labels = Object.keys(months).map(k => {
+        const [y, m] = k.split('-');
+        return new Date(y, m, 1).toLocaleDateString('pt-BR', { month: 'short' });
+      });
+      const values = Object.values(months);
+
+      if (charts.renda) charts.renda.destroy();
+      const ctx = document.getElementById('chart-renda').getContext('2d');
+      charts.renda = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Renda Extra',
+            data: values,
+            backgroundColor: '#10b981',
+            borderRadius: 6,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#1e293b' }, ticks: { color: '#64748b', callback: v => 'R$ ' + v } },
+            x: { grid: { display: false }, ticks: { color: '#64748b' } }
+          }
+        }
+      });
+    }
+
+    function renderTarefasChart(tarData, facData) {
+      const all = [...tarData, ...facData];
+      const pendente = all.filter(t => t.status === 'pendente').length;
+      const andamento = all.filter(t => t.status === 'em_andamento').length;
+      const concluido = all.filter(t => t.status === 'concluido').length;
+
+      if (charts.tarefas) charts.tarefas.destroy();
+      const ctx = document.getElementById('chart-tarefas').getContext('2d');
+      charts.tarefas = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Pendente', 'Em andamento', 'Concluído'],
+          datasets: [{
+            data: [pendente, andamento, concluido],
+            backgroundColor: ['#f59e0b', '#6366f1', '#10b981'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 16 } } }
+        }
+      });
+    }
+
+    // ============================================================
+    // MODAL / FORM
+    // ============================================================
+    const formConfigs = {
+      financiamento: {
+        table: 'financiamentos',
+        title: 'Financiamento',
+        fields: [
+          { name: 'nome', label: 'Nome', type: 'text', placeholder: 'Ex: Carro, Casa...', required: true },
+          { name: 'valor_total', label: 'Valor Total (R$)', type: 'number', placeholder: '45000', required: true },
+          { name: 'valor_parcela', label: 'Valor da Parcela (R$)', type: 'number', placeholder: '850', required: true },
+          { name: 'parcelas_totais', label: 'Parcelas Totais', type: 'number', placeholder: '60', required: true },
+          { name: 'parcelas_pagas', label: 'Parcelas Pagas', type: 'number', placeholder: '12', default: 0 },
+          { name: 'status', label: 'Status', type: 'select', options: ['ativo', 'quitado', 'atrasado'], default: 'ativo' }
+        ]
+      },
+      carreira: {
+        table: 'projetos_carreira',
+        title: 'Projeto de Carreira',
+        fields: [
+          { name: 'nome', label: 'Nome do Projeto', type: 'text', placeholder: 'Ex: Aprender Python', required: true },
+          { name: 'descricao', label: 'Descrição', type: 'textarea', placeholder: 'Detalhes do projeto...' },
+          { name: 'status', label: 'Status', type: 'select', options: ['planejado', 'em_andamento', 'concluido', 'pausado'], default: 'planejado' },
+          { name: 'prioridade', label: 'Prioridade', type: 'select', options: ['baixa', 'media', 'alta'], default: 'media' },
+          { name: 'prazo', label: 'Prazo', type: 'date' },
+          { name: 'progresso', label: 'Progresso (%)', type: 'number', placeholder: '0', default: 0, min: 0, max: 100 }
+        ]
+      },
+      faculdade: {
+        table: 'faculdade',
+        title: 'Tarefa da Faculdade',
+        fields: [
+          { name: 'materia', label: 'Matéria', type: 'text', placeholder: 'Ex: Cálculo I', required: true },
+          { name: 'tarefa', label: 'Tarefa', type: 'text', placeholder: 'Ex: Trabalho final', required: true },
+          { name: 'prazo', label: 'Prazo de Entrega', type: 'date' },
+          { name: 'status', label: 'Status', type: 'select', options: ['pendente', 'em_andamento', 'concluido'], default: 'pendente' },
+          { name: 'nota', label: 'Nota (opcional)', type: 'number', placeholder: '8.5', step: '0.1' }
+        ]
+      },
+      tarefa: {
+        table: 'tarefas',
+        title: 'Nova Tarefa',
+        fields: [
+          { name: 'titulo', label: 'Título', type: 'text', placeholder: 'O que precisa fazer?', required: true },
+          { name: 'categoria', label: 'Categoria', type: 'text', placeholder: 'Ex: Pessoal, Trabalho...' },
+          { name: 'prioridade', label: 'Prioridade', type: 'select', options: ['baixa', 'media', 'alta'], default: 'media' },
+          { name: 'status', label: 'Status', type: 'select', options: ['pendente', 'em_andamento', 'concluido'], default: 'pendente' },
+          { name: 'prazo', label: 'Prazo', type: 'date' }
+        ]
+      },
+      renda: {
+        table: 'renda_extra',
+        title: 'Renda Extra',
+        fields: [
+          { name: 'fonte', label: 'Fonte', type: 'text', placeholder: 'Ex: Freelance, Venda...', required: true },
+          { name: 'valor', label: 'Valor (R$)', type: 'number', placeholder: '500', step: '0.01', required: true },
+          { name: 'data', label: 'Data', type: 'date', default: new Date().toISOString().split('T')[0] },
+          { name: 'descricao', label: 'Descrição', type: 'textarea', placeholder: 'Detalhes...' }
+        ]
+      }
+    };
+
+    let editingData = {};
+
+    async function openModal(type, id = null) {
+      const config = formConfigs[type];
+      document.getElementById('modal-title').textContent = id ? `Editar ${config.title}` : `Novo ${config.title}`;
+      document.getElementById('form-type').value = type;
+      document.getElementById('form-id').value = id || '';
+
+      editingData = {};
+
+      if (id) {
+        const { data } = await supabase.from(config.table).select('*').eq('id', id).single();
+        if (data) editingData = data;
+      }
+
+      const fieldsHtml = config.fields.map(f => {
+        const val = editingData[f.name] ?? f.default ?? '';
+        if (f.type === 'select') {
+          return `<div><label class="text-sm text-slate-400 mb-1 block">${f.label}</label>
+            <select name="${f.name}" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-brand-500">
+            ${f.options.map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o.replace('_',' ')}</option>`).join('')}
+            </select></div>`;
+        } else if (f.type === 'textarea') {
+          return `<div><label class="text-sm text-slate-400 mb-1 block">${f.label}</label>
+            <textarea name="${f.name}" rows="3" placeholder="${f.placeholder || ''}" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-brand-500">${esc(val)}</textarea></div>`;
+        } else {
+          return `<div><label class="text-sm text-slate-400 mb-1 block">${f.label}</label>
+            <input name="${f.name}" type="${f.type}" value="${esc(val)}" placeholder="${f.placeholder || ''}" ${f.step ? `step="${f.step}"` : ''} ${f.min != null ? `min="${f.min}"` : ''} ${f.max != null ? `max="${f.max}"` : ''} ${f.required ? 'required' : ''} class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-brand-500" /></div>`;
+        }
+      }).join('');
+
+      document.getElementById('modal-fields').innerHTML = fieldsHtml;
+      document.getElementById('modal-overlay').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModal(event) {
+      if (event && event.target !== event.currentTarget) return;
+      document.getElementById('modal-overlay').classList.add('hidden');
+      editingData = {};
+    }
+
+    async function handleSubmit(event) {
+      event.preventDefault();
+      const type = document.getElementById('form-type').value;
+      const id = document.getElementById('form-id').value;
+      const config = formConfigs[type];
+      const formData = new FormData(event.target);
+      const data = {};
+      config.fields.forEach(f => {
+        const val = formData.get(f.name);
+        if (val !== '' && val !== null) {
+          data[f.name] = f.type === 'number' ? parseFloat(val) : val;
+        }
+      });
+
+      if (id) {
+        const { error } = await supabase.from(config.table).update(data).eq('id', id);
+        if (error) { showToast('Erro: ' + error.message, 'error'); return; }
+        showToast('Atualizado com sucesso!', 'success');
+      } else {
+        const { error } = await supabase.from(config.table).insert(data);
+        if (error) { showToast('Erro: ' + error.message, 'error'); return; }
+        showToast('Criado com sucesso!', 'success');
+      }
+
+      closeModal();
+      loadAllData();
+    }
+
+    async function deleteItem(table, id) {
+      if (!confirm('Tem certeza que deseja excluir?')) return;
+      const { error } = await supabase.from(table).delete().eq('id', id);
+      if (error) { showToast('Erro: ' + error.message, 'error'); return; }
+      showToast('Excluído!', 'success');
+      loadAllData();
+    }
+
+    async function toggleTarefaStatus(id, currentStatus) {
+      const newStatus = currentStatus === 'concluido' ? 'pendente' : 'concluido';
+      await supabase.from('tarefas').update({ status: newStatus }).eq('id', id);
+      loadAllData();
+    }
+
+    async function toggleFaculdadeStatus(id, currentStatus) {
+      const newStatus = currentStatus === 'concluido' ? 'pendente' : 'concluido';
+      await supabase.from('faculdade').update({ status: newStatus }).eq('id', id);
+      loadAllData();
+    }
+
+    // ============================================================
+    // UTILS
+    // ============================================================
+    function esc(str) {
+      if (str == null) return '';
+      return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    function showToast(msg, type = 'info') {
+      const colors = { success: 'bg-emerald-600', error: 'bg-red-600', info: 'bg-brand-600' };
+      const toast = document.createElement('div');
+      toast.className = `toast ${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium`;
+      toast.textContent = msg;
+      document.getElementById('toast-container').appendChild(toast);
+      setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 3000);
+    }
+
+    // ============================================================
+    // START
+    // ============================================================
+    init();
+  </script>
+</body>
+</html>
